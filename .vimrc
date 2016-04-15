@@ -21,3 +21,5 @@ set showmatch
 " Pathogen
 execute pathogen#infect()
 
+" Clipboard
+set clipboard="unnamedplus"
