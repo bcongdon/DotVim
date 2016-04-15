@@ -23,3 +23,6 @@ execute pathogen#infect()
 
 " Clipboard
 set clipboard="unnamedplus"
+
+" Colors
+colorscheme solarized
