@@ -26,3 +26,11 @@ set clipboard="unnamedplus"
 
 " Colors
 colorscheme solarized
+
+set backspace=2
+
+" Unbind arrow keys (gotta use hjkl)
+map <Left> <Nop>
+map <Right> <Nop>
+map <Up> <Nop>
+map <Down> <Nop>
