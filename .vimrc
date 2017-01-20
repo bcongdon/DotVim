@@ -25,6 +25,7 @@ execute pathogen#infect()
 set clipboard="unnamedplus"
 
 " Colors
+set background=dark
 colorscheme solarized
 
 set backspace=2
