@@ -73,8 +73,6 @@ inoremap <Down>  <NOP>
 inoremap <Left>  <NOP>
 inoremap <Right> <NOP>
 
-" Paste on newline
-nmap ,p $p 
 
 " Ctrl-P to enter fzf
 map <C-P> :Files<Enter>
@@ -94,6 +92,9 @@ Plug 'prettier/vim-prettier', {
 Plug 'tpope/vim-surround'
 Plug 'godlygeek/tabular'
 Plug 'plasticboy/vim-markdown'
+Plug 'yegappan/grep'
+Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 call plug#end()
 
@@ -102,11 +103,90 @@ let g:vim_markdown_frontmatter = 1
 let g:vim_markdown_folding_disabled = 1
 let g:vim_markdown_emphasis_multiline = 0
 "let g:vim_markdown_conceal_code_blocks = 0
-set conceallevel=2
+autocmd FileType markdown set conceallevel=2
+set conceallevel=0
 
 " Leader functions
 let mapleader=","
 command! -nargs=1 Silent execute ':silent !'.<q-args> | execute ':redraw!'
-map <Leader>o :Silent open %:h<cr>
-map <leader>vimrc :tabe ~/.vim/.vimrc<cr>
-map <Leader>r :source ~/.vimrc<cr>
+nmap <Leader>o :Silent open %:h<cr>
+nmap <leader>vimrc :tabe ~/.vimrc<cr>
+nmap <Leader>r :source ~/.vimrc<cr>
+" Paste on newline
+nmap <Leader>p $p 
+" Copy filename to buffer
+nmap <Leader>yp :let @" = expand('%:p')<cr>
+nmap <Leader>md :call PasteMDLink()<cr>
+nmap <Leader>hp :call PreviewHugoPage(expand('%:p'))<cr>
+
+function! GetURLTitle(url)
+    " Bail early if the url obviously isn't a URL.
+    if a:url !~ '^https\?://'
+        return ""
+    endif
+    
+    let title = system("python3 -c \"import bs4, requests; print(bs4.BeautifulSoup(requests.get('" . a:url . "').content, 'lxml').title.text.strip())\"")
+
+    " Echo the error if getting title failed.
+    if v:shell_error != 0
+        echom title
+        return ""
+    endif
+
+    " Strip trailing newline
+    return substitute(title, '\n', '', 'g')
+endfunction
+
+function PasteMDLink()
+    let url = getreg("+")
+    let title = GetURLTitle(url)
+    let mdLink = printf("[%s](%s)", title, url)
+    execute "normal! a" . mdLink . "\<Esc>"
+endfunction
+
+let g:hugo_site_config = [ 'config.toml', 'config.yaml', 'config.json' ]
+" The local Hugo server URL
+let g:hugo_base_url = "http://localhost:1313/"
+
+function! HugoBaseDirectory(filepath)
+    let l:mods = ':p:h'
+    let l:dirname = 'dummy'
+    while !empty(l:dirname)
+        let l:path = fnamemodify(a:filepath, l:mods)
+        let l:mods .= ':h'
+        let l:dirname = fnamemodify(l:path, ':t')
+        " Check if the parent of the content directory contains a config file.
+        let l:parent = fnamemodify(l:path, ":h")
+        if HugoConfigFile(l:parent) != ""
+            return l:parent
+        endif
+    endwhile
+
+    return ""
+endfunction
+
+function! HugoConfigFile(dir)
+    " :p adds the final path separator if a:dir is a directory.
+    let l:dirpath = fnamemodify(a:dir, ':p')
+    for config in g:hugo_site_config
+        let l:file = l:dirpath . config
+        if filereadable(l:file)
+            return l:file
+        endif
+    endfor
+    return ""
+endfunction
+
+function! PreviewHugoPage(filepath)
+    let l:fullpath = fnamemodify(a:filepath, ':p')
+    let l:basedir = HugoBaseDirectory(l:fullpath)
+    if l:basedir == ""
+        return ""
+    endif
+    let l:configpath = HugoConfigFile(l:fullpath)
+    let l:contentpath = substitute(l:fullpath, l:basedir . '/', '', '')
+    let l:url = systemlist("cd " . l:basedir . " && HUGO_BASEURL='" . g:hugo_base_url . "' hugo list all | grep " . l:contentpath . " | head -n 1 | cut -d ',' -f 8")[0]
+    exe system("open " . l:url)
+endfunction
+
+nmap <Leader>hp :call PreviewHugoPage(expand('%'))<cr>
